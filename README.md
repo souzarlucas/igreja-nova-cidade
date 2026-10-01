@@ -21,7 +21,7 @@ Sistema de gestão de ministérios, membros, eventos e recursos da igreja. Códi
 | Admin escolhido pelo principal | Gestão operacional completa; não administra autorizações de pessoas |
 | Tesouraria | Sem financeiro até liberação individual; depois pode consultar a igreja, registrar entradas, saídas, orçamentos e decidir pedidos |
 | Presbitério | Sem financeiro até liberação individual; depois consulta o financeiro da igreja e decide pedidos, sem editar movimentações |
-| Ministério | Atividades próprias até o prazo configurado; financeiro bloqueado inicialmente; quando autorizado, consulta apenas seu ministério e solicita recursos até o prazo |
+| Ministério | Atividades próprias até o prazo configurado; financeiro bloqueado inicialmente; quando autorizado, consulta e lança entradas e despesas detalhadas apenas no seu ministério e solicita recursos até o prazo |
 | Membro | Calendário e atividades; financeiro bloqueado inicialmente; quando autorizado, consulta apenas seu ministério |
 
 Ser administrador é uma autorização ampla concedida exclusivamente pela conta principal. Somente essa conta pode promover alguém a Admin. A autorização financeira é verificada no servidor em cada consulta e operação, além de controlar a interface. Revogar acesso encerra as sessões existentes.

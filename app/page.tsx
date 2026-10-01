@@ -341,7 +341,7 @@ export default function App() {
       ["budgets", "expenses", "incomes"].includes(kind)) ||
     (user?.role === "ministry" &&
       !closed &&
-      (kind === "events" || (kind === "requests" && user.canFinance)));
+      (kind === "events" || (["requests", "expenses", "incomes"].includes(kind) && user.canFinance)));
   const selectedEvents = events.filter(
     (e) =>
       (!month || Number(e.date.slice(5, 7)) === month) &&

@@ -102,6 +102,7 @@ class Expense(Model):
     area: str = Field(min_length=2, max_length=100)
     notes: str = Field(default="", max_length=4000)
     justification: str = Field(min_length=10, max_length=4000)
+    executionDetails: str = Field(min_length=10, max_length=4000)
     requestId: str = Field(default="", max_length=100)
     items: list[Item] = Field(min_length=1, max_length=50)
 

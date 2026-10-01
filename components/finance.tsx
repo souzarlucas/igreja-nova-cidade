@@ -296,9 +296,11 @@ export function FinancialView({
   const name = (id: string) =>
     (data.ministries || []).find((m) => m.id === id)?.name ||
     (!id ? "Gestão geral da igreja" : "Ministério");
-  const write = ["admin", "treasury"].includes(user.role),
+  const expired = user.role === "ministry" && Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Manaus", day: "numeric" }).format(new Date())) > (data.settings?.[0]?.deadline || 10);
+  const manageBudgets = ["admin", "treasury"].includes(user.role);
+  const write = manageBudgets || (user.role === "ministry" && !expired),
     approve = ["admin", "treasury", "presbytery"].includes(user.role),
-    requester = ["admin", "ministry"].includes(user.role);
+    requester = ["admin", "ministry"].includes(user.role) && !expired;
   const categories: Record<string, number> = {};
   for (const row of s.expenses)
     for (const item of row.items || [
@@ -562,7 +564,7 @@ export function FinancialView({
       {tab === "budgets" && (
         <>
           <div className="finance-actions">
-            {write && (
+            {manageBudgets && (
               <button className="primary" onClick={() => onOpen("budgets")}>
                 <Plus size={17} />
                 Definir orçamento por área
@@ -620,7 +622,7 @@ export function FinancialView({
                               : "Sem limite"}
                           </td>
                           <td>
-                            {write && (
+                            {manageBudgets && (
                               <button
                                 className="text-button"
                                 onClick={() => onOpen("budgets", b)}
@@ -929,7 +931,8 @@ export function FinancialForm({
   const write =
     kind === "requests"
       ? !row && !expired && ["admin", "ministry"].includes(user.role)
-      : ["admin", "treasury"].includes(user.role);
+      : ["admin", "treasury"].includes(user.role) ||
+        (user.role === "ministry" && !expired && ["expenses", "incomes"].includes(kind));
   const itemized = ["expenses", "requests"].includes(kind),
     total = items.reduce(
       (s, i) => s + Math.round(Number(i.amount || 0) * 100),
@@ -1171,8 +1174,22 @@ export function FinancialForm({
                       </select>
                     </label>
                   )}
+                  {kind === "expenses" && (
+                    <label className="wide">
+                      Como o gasto foi realizado
+                      <textarea
+                        name="executionDetails"
+                        rows={3}
+                        minLength={10}
+                        maxLength={4000}
+                        defaultValue={row?.executionDetails || ""}
+                        placeholder="Informe onde comprou ou contratou, como pagou e como os recursos foram utilizados."
+                        required
+                      />
+                    </label>
+                  )}
                   <label className="wide">
-                    Justificativa obrigatória
+                    {kind === "requests" ? "Por que precisa de dinheiro da igreja?" : "Em que gastou e por quê?"}
                     <textarea
                       name="justification"
                       rows={3}

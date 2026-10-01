@@ -241,6 +241,7 @@ def test_itemized_request_approval_reservation_and_expense_cap(church):
         "area": "Equipamentos",
         "amount": 5000,
         "justification": "Compra conforme pedido autorizado.",
+        "executionDetails": "Compra na loja local, paga por transferência.",
         "requestId": request,
         "items": [{"description": "Microfone", "category": "Som", "amount": 5000}],
     }
@@ -364,3 +365,35 @@ def test_annual_cap_applies_even_when_monthly_budget_exists(church):
     state = admin.get("/api/system").json()
     assert state["data"]["requests"][0]["status"] == "Pendente"
     assert not any(a["action"] == "decidiu pedido" for a in state["audit"])
+
+
+def test_ministry_financial_writes_are_scoped_and_justified(church):
+    app, admin, post = church
+    own = save(admin, post, "ministries", {"name": "Louvor"})
+    other = save(admin, post, "ministries", {"name": "Jovens"})
+    save(admin, post, "settings", {"deadline": 31})
+    u, representative = account(app, admin, post, "ministry", own, True)
+    income = {"name": "Doações do ministério", "date": "2026-09-30", "amount": 5000, "category": "Doações"}
+    expense = {"name": "Compra de material", "date": "2026-09-30", "amount": 2000, "area": "Materiais", "justification": "Material utilizado no ensaio do ministério.", "executionDetails": "Comprado na papelaria e pago por Pix.", "items": [{"description": "Papel", "category": "Papelaria", "amount": 2000}]}
+    for kind, data in [("incomes", income), ("expenses", expense)]:
+        foreign_id = save(admin, post, kind, data, other)
+        own_id = save(representative, post, kind, data, own)
+        assert post(representative, {"action": "save", "kind": kind, "ministry": other, "data": data}).status_code == 403
+        assert post(representative, {"action": "save", "kind": kind, "id": foreign_id, "ministry": own, "data": data}).status_code == 403
+        assert post(representative, {"action": "save", "kind": kind, "id": own_id, "ministry": own, "data": data}).status_code == 200
+        assert {r['ministry'] for r in representative.get('/api/system').json()['data'][kind]} == {own}
+    for field in ['justification', 'executionDetails']:
+        invalid = {k: v for k, v in expense.items() if k != field}
+        assert post(representative, {"action": "save", "kind": "expenses", "ministry": own, "data": invalid}).status_code == 400
+    assert post(representative, {"action": "save", "kind": "expenses", "ministry": own, "data": {**expense, "amount": 3000}}).status_code == 400
+    assert post(representative, {"action": "save", "kind": "budgets", "ministry": own, "data": {"year": 2026, "month": 9, "area": "Materiais", "amount": 5000}}).status_code == 403
+    for role in ['member', 'presbytery']:
+        _, client = account(app, admin, post, role, own, True)
+        for kind, data in [('incomes', income), ('expenses', expense)]:
+            assert post(client, {"action": "save", "kind": kind, "ministry": own, "data": data}).status_code == 403
+    save(admin, post, 'settings', {'deadline': 1})
+    assert post(representative, {"action": "save", "kind": "expenses", "ministry": own, "data": expense}).status_code == 403
+    save(admin, post, 'settings', {'deadline': 31})
+    post(admin, {"action": "setFinanceAccess", "id": u['id'], "allowed": False})
+    post(representative, {"action": "login", "email": u['email'], "password": PASSWORD})
+    assert post(representative, {"action": "save", "kind": "incomes", "ministry": own, "data": income}).status_code == 403
