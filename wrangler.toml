@@ -11,5 +11,5 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "igreja-nova-cidade"
-database_id = "00000000-0000-4000-8000-000000000000"
+database_id = "d5a339fe-6204-428a-ab06-be70b4849943"
 migrations_dir = "drizzle"
