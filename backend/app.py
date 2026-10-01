@@ -496,7 +496,7 @@ async def handle(request, body):
             )
             if not limits:
                 raise ApiError(
-                    "Defina o orçamento da área antes de aprovar recursos.", 409
+                    "Defina o orçamento da categoria antes de aprovar recursos.", 409
                 )
             for limit in limits:
                 budget_month = limit["month"]
@@ -547,7 +547,7 @@ async def handle(request, body):
         )
         if not results[0]["changes"]:
             raise ApiError(
-                "Orçamento disponível insuficiente para aprovar este pedido, ou ele já foi decidido. Defina/revise o orçamento da área.",
+                "Orçamento disponível insuficiente para aprovar este pedido, ou ele já foi decidido. Defina/revise o orçamento da categoria.",
                 409,
             )
         return {"ok": True}
@@ -631,7 +631,7 @@ async def handle(request, body):
         )
         if conflict:
             raise ApiError(
-                "Já existe orçamento para esta área e período. Edite o existente.", 409
+                "Já existe orçamento para esta categoria e período. Edite o existente.", 409
             )
     params = (identifier, kind, ministry, dump(data), budget_key, now_ms())
     sql = "INSERT INTO records(id,kind,ministry,data,budget_key,updated) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET ministry=excluded.ministry,data=excluded.data,budget_key=excluded.budget_key,updated=excluded.updated"
@@ -644,7 +644,7 @@ async def handle(request, body):
         if not resource or json.loads(resource["data"])["status"] != "Aprovado":
             raise ApiError("Selecione um pedido aprovado do mesmo ministério.")
         if data["area"].casefold() != json.loads(resource["data"])["area"].casefold():
-            raise ApiError("A área da despesa deve corresponder à área aprovada.")
+            raise ApiError("A categoria da despesa deve corresponder à categoria aprovada.")
         sql = """INSERT INTO records(id,kind,ministry,data,budget_key,updated) SELECT ?,?,?,?,?,? WHERE ? <=
         (SELECT json_extract(data,'$.amount') FROM records WHERE id=? AND kind='requests' AND json_extract(data,'$.status')='Aprovado')
         - (SELECT coalesce(sum(json_extract(data,'$.amount')),0) FROM records WHERE kind='expenses' AND json_extract(data,'$.requestId')=? AND id<>?)

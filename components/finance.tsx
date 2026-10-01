@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   LockKeyhole,
   X,
-  Trash2,
 } from "lucide-react";
 import {
   BarChart,
@@ -453,7 +452,7 @@ export function FinancialView({
                       {pending.length} pedido(s) aguardando análise
                     </strong>
                     <p>
-                      Avalie objetivos, prioridades e disponibilidade por área
+                      Avalie objetivos, prioridades e disponibilidade por categoria
                       antes de decidir.
                     </p>
                   </div>
@@ -501,7 +500,7 @@ export function FinancialView({
                 <thead>
                   <tr>
                     <th>Descrição</th>
-                    <th>Ministério / área</th>
+                    <th>Ministério / categoria</th>
                     <th>Data</th>
                     <th>Tipo</th>
                     <th>Valor</th>
@@ -567,13 +566,13 @@ export function FinancialView({
             {manageBudgets && (
               <button className="primary" onClick={() => onOpen("budgets")}>
                 <Plus size={17} />
-                Definir orçamento por área
+                Definir orçamento por categoria
               </button>
             )}
           </div>
           <section className="panel">
             <div className="panel-heading">
-              <h2>Orçamento por ministério e área</h2>
+              <h2>Orçamento por ministério e categoria</h2>
               <p>Os limites mensais e anuais são separados e não se somam.</p>
             </div>
             <div className="table-scroll">
@@ -581,7 +580,7 @@ export function FinancialView({
                 <thead>
                   <tr>
                     <th>Ministério</th>
-                    <th>Área</th>
+                    <th>Categoria</th>
                     <th>Período</th>
                     <th>Autorizado</th>
                     <th>Gasto</th>
@@ -910,16 +909,7 @@ export function FinancialForm({
   onSave: (payload: { ministry: string; data: any }) => Promise<void>;
   onClose: () => void;
 }) {
-  const [ministry, setMinistry] = useState(
-      row?.ministry || user.ministry || "",
-    ),
-    [items, setItems] = useState<
-      { description: string; category: string; amount: string }[]
-    >(
-      (row?.items || [{ description: "", category: "", amount: 0 }]).map(
-        (i: any) => ({ ...i, amount: String(i.amount / 100) }),
-      ),
-    );
+  const [ministry, setMinistry] = useState(row?.ministry || user.ministry || "");
   const expired =
     user.role === "ministry" &&
     Number(
@@ -933,15 +923,6 @@ export function FinancialForm({
       ? !row && !expired && ["admin", "ministry"].includes(user.role)
       : ["admin", "treasury"].includes(user.role) ||
         (user.role === "ministry" && !expired && ["expenses", "incomes"].includes(kind));
-  const itemized = ["expenses", "requests"].includes(kind),
-    total = items.reduce(
-      (s, i) => s + Math.round(Number(i.amount || 0) * 100),
-      0,
-    );
-  const changeItem = (i: number, key: string, value: string) =>
-    setItems(
-      items.map((r, index) => (index === i ? { ...r, [key]: value } : r)),
-    );
   return (
     <form
       onSubmit={async (e) => {
@@ -953,13 +934,17 @@ export function FinancialForm({
           payload.year = Number(payload.year);
           payload.month = Number(payload.month);
         }
-        if (itemized) {
-          payload.amount = total;
-          payload.items = items.map((i) => ({
-            ...i,
-            amount: Math.round(Number(i.amount) * 100),
-          }));
-        } else payload.amount = Math.round(Number(payload.amount) * 100);
+        payload.amount = Math.round(Number(payload.amount) * 100);
+        // Preserve historical links and breakdowns when editing existing records.
+        if (row && ["expenses", "requests"].includes(kind)) {
+          payload.event = row.event || "";
+          if (kind === "expenses") {
+            payload.requestId = row.requestId || "";
+            payload.notes = row.notes || "";
+          }
+          if (payload.amount === row.amount && payload.area === row.area && payload.name === row.name)
+            payload.items = row.items;
+        }
         await onSave({ ministry, data: payload });
       }}
     >
@@ -1033,9 +1018,10 @@ export function FinancialForm({
                 </select>
               </label>
               <label>
-                Área / centro de custo
+                Categoria
                 <input
                   name="area"
+                  placeholder="Ex.: custo fixo, custo esporádico"
                   defaultValue={row?.area || ""}
                   required
                   minLength={2}
@@ -1105,27 +1091,15 @@ export function FinancialForm({
               ) : (
                 <>
                   <label>
-                    Área / centro de custo
+                    Categoria
                     <input
                       name="area"
+                      placeholder="Ex.: custo fixo, custo esporádico"
                       defaultValue={row?.area || ""}
                       required
                       minLength={2}
                       maxLength={100}
                     />
-                  </label>
-                  <label className="wide">
-                    Evento relacionado
-                    <select name="event" defaultValue={row?.event || ""}>
-                      <option value="">Sem evento vinculado</option>
-                      {(data.events || [])
-                        .filter((e) => e.ministry === ministry)
-                        .map((e) => (
-                          <option value={e.id} key={e.id}>
-                            {e.name}
-                          </option>
-                        ))}
-                    </select>
                   </label>
                   {kind === "requests" ? (
                     <>
@@ -1152,28 +1126,7 @@ export function FinancialForm({
                         />
                       </label>
                     </>
-                  ) : (
-                    <label className="wide">
-                      Pedido aprovado vinculado
-                      <select
-                        name="requestId"
-                        defaultValue={row?.requestId || ""}
-                      >
-                        <option value="">Despesa avulsa</option>
-                        {(data.requests || [])
-                          .filter(
-                            (r) =>
-                              r.ministry === ministry &&
-                              r.status === "Aprovado",
-                          )
-                          .map((r) => (
-                            <option value={r.id} key={r.id}>
-                              {r.name} · {money(r.amount)}
-                            </option>
-                          ))}
-                      </select>
-                    </label>
-                  )}
+                  ) : null}
                   {kind === "expenses" && (
                     <label className="wide">
                       Como o gasto foi realizado
@@ -1189,7 +1142,7 @@ export function FinancialForm({
                     </label>
                   )}
                   <label className="wide">
-                    {kind === "requests" ? "Por que precisa de dinheiro da igreja?" : "Em que gastou e por quê?"}
+                    {kind === "requests" ? "Por que precisa de dinheiro da igreja?" : "Justificativa do gasto"}
                     <textarea
                       name="justification"
                       rows={3}
@@ -1201,7 +1154,7 @@ export function FinancialForm({
                   </label>
                 </>
               )}
-              {kind !== "requests" && (
+              {kind === "incomes" && (
                 <label className="wide">
                   Observações
                   <textarea
@@ -1214,79 +1167,18 @@ export function FinancialForm({
               )}
             </>
           )}
-          {itemized && (
-            <div className="wide line-items">
-              <h3>Itens separados</h3>
-              {items.map((item, i) => (
-                <div className="item-editor" key={i}>
-                  <label>
-                    Descrição
-                    <input
-                      aria-label={`Descrição do item ${i + 1}`}
-                      value={item.description}
-                      onChange={(e) =>
-                        changeItem(i, "description", e.target.value)
-                      }
-                      minLength={2}
-                      maxLength={200}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Categoria
-                    <input
-                      aria-label={`Categoria do item ${i + 1}`}
-                      value={item.category}
-                      onChange={(e) =>
-                        changeItem(i, "category", e.target.value)
-                      }
-                      minLength={2}
-                      maxLength={100}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Valor (R$)
-                    <input
-                      aria-label={`Valor do item ${i + 1}`}
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={item.amount}
-                      onChange={(e) => changeItem(i, "amount", e.target.value)}
-                      required
-                    />
-                  </label>
-                  {items.length > 1 && (
-                    <button
-                      type="button"
-                      aria-label={`Remover item ${i + 1}`}
-                      onClick={() => setItems(items.filter((_, n) => n !== i))}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {write && items.length < 50 && (
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() =>
-                    setItems([
-                      ...items,
-                      { description: "", category: "", amount: "0" },
-                    ])
-                  }
-                >
-                  <Plus size={16} />
-                  Adicionar item
-                </button>
-              )}
-              <div className="item-total">
-                Total dos itens <strong>{money(total)}</strong>
-              </div>
-            </div>
+          {["expenses", "requests"].includes(kind) && (
+            <label>
+              Valor (R$)
+              <input
+                name="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                defaultValue={(row?.amount || 0) / 100}
+                required
+              />
+            </label>
           )}
         </fieldset>
         <div className="form-actions">

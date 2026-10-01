@@ -104,11 +104,13 @@ class Expense(Model):
     justification: str = Field(min_length=10, max_length=4000)
     executionDetails: str = Field(min_length=10, max_length=4000)
     requestId: str = Field(default="", max_length=100)
-    items: list[Item] = Field(min_length=1, max_length=50)
+    items: list[Item] = Field(default_factory=list, min_length=1, max_length=50)
 
     @model_validator(mode="after")
     def check(self):
         date.fromisoformat(self.date)
+        if not self.items:
+            self.items = [Item(description=self.name, category=self.area, amount=self.amount)]
         if sum(i.amount for i in self.items) != self.amount:
             raise ValueError("A soma dos itens deve corresponder ao valor total")
         return self
@@ -137,11 +139,13 @@ class ResourceRequest(Model):
     objective: str = Field(min_length=10, max_length=4000)
     priority: Literal["Normal", "Alta", "Baixa"] = "Normal"
     amount: int = Field(gt=0, le=100_000_000_000)
-    items: list[Item] = Field(min_length=1, max_length=50)
+    items: list[Item] = Field(default_factory=list, min_length=1, max_length=50)
 
     @model_validator(mode="after")
     def valid_total(self):
         date.fromisoformat(self.date)
+        if not self.items:
+            self.items = [Item(description=self.name, category=self.area, amount=self.amount)]
         if sum(i.amount for i in self.items) != self.amount:
             raise ValueError("Total dos itens inválido")
         return self

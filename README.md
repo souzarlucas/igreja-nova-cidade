@@ -6,11 +6,11 @@ Sistema de gestão de ministérios, membros, eventos e recursos da igreja. Códi
 
 - Cadastro de ministérios e membros, atividades com datas, horários opcionais, objetivos, equipes e responsáveis.
 - Calendário geral: concluído verde, programado azul, em andamento amarelo, atrasado vermelho; filtros por responsável, status, mês, ano e ministério.
-- Entradas e saídas, resultado do período e saldo acumulado. Despesas com justificativa e itens separados por categoria.
-- Orçamentos anuais e mensais por ministério e área. Gráficos automáticos, consumo, saldo e sinais de concentração de gastos.
-- Pedidos de recursos com justificativa, objetivo e itens obrigatórios. Aprovação ou rejeição registrada com responsável e motivo. O autor não decide o próprio pedido.
+- Entradas e saídas, resultado do período e saldo acumulado. Despesas com categoria livre, justificativa obrigatória, descrição de como o gasto foi realizado e valor único.
+- Orçamentos anuais e mensais por ministério e categoria. Gráficos automáticos, consumo, saldo e sinais de concentração de gastos.
+- Pedidos de recursos com justificativa, objetivo, categoria e valor obrigatório. Aprovação ou rejeição registrada com responsável e motivo. O autor não decide o próprio pedido.
 - A aprovação reserva orçamento e não lança uma despesa automaticamente. Despesas vinculadas não podem exceder o total aprovado. As verificações e os registros de auditoria usam transações no banco.
-- Quando existem limites mensal e anual para a mesma área, a aprovação respeita ambos. Na ausência de limite mensal, usa o anual. Orçamento não equivale ao dinheiro em caixa.
+- Quando existem limites mensal e anual para a mesma categoria, a aprovação respeita ambos. Na ausência de limite mensal, usa o anual. Orçamento não equivale ao dinheiro em caixa.
 - Login por e-mail e senha, contas criadas pelo administrador principal, bloqueio de contas, redefinição de senha e revogação imediata das sessões ao mudar permissões.
 
 ## Autorizações

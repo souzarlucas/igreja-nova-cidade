@@ -397,3 +397,24 @@ def test_ministry_financial_writes_are_scoped_and_justified(church):
     post(admin, {"action": "setFinanceAccess", "id": u['id'], "allowed": False})
     post(representative, {"action": "login", "email": u['email'], "password": PASSWORD})
     assert post(representative, {"action": "save", "kind": "incomes", "ministry": own, "data": income}).status_code == 403
+
+
+def test_single_value_expense_and_request_keep_approval_and_totals(church):
+    app, admin, post = church
+    ministry = save(admin, post, 'ministries', {'name': 'Ação social'})
+    save(admin, post, 'settings', {'deadline': 31})
+    save(admin, post, 'budgets', {'year': 2026, 'month': 9, 'area': 'Custo esporádico', 'amount': 20000}, ministry)
+    _, representative = account(app, admin, post, 'ministry', ministry, True)
+    request = {'name': 'Materiais para ação social', 'date': '2026-09-30', 'area': 'Custo esporádico', 'amount': 12345, 'justification': 'Recursos necessários para atender famílias da comunidade.', 'objective': 'Distribuir materiais para as famílias.'}
+    request_id = save(representative, post, 'requests', request, ministry)
+    assert post(admin, {'action': 'decideRequest', 'id': request_id, 'decision': 'Aprovado'}).status_code == 200
+    expense = {'name': 'Compra de materiais', 'date': '2026-09-30', 'area': 'Custo esporádico', 'amount': 12345, 'justification': 'Materiais utilizados na ação social.', 'executionDetails': 'Comprado no comércio local e pago por Pix.'}
+    expense_id = save(representative, post, 'expenses', expense, ministry)
+    state = representative.get('/api/system').json()['data']
+    for kind, identifier in [('requests', request_id), ('expenses', expense_id)]:
+        record = next(r for r in state[kind] if r['id'] == identifier)
+        assert record['amount'] == 12345
+        assert record['items'] == [{'description': record['name'], 'category': 'Custo esporádico', 'amount': 12345}]
+    assert post(representative, {'action': 'save', 'kind': 'expenses', 'ministry': ministry, 'data': {**expense, 'justification': ''}}).status_code == 400
+    assert post(representative, {'action': 'save', 'kind': 'requests', 'ministry': ministry, 'data': {**request, 'justification': ''}}).status_code == 400
+    assert post(representative, {'action': 'save', 'kind': 'expenses', 'ministry': ministry, 'data': {**expense, 'amount': 0}}).status_code == 400
