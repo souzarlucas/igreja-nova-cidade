@@ -232,7 +232,7 @@ async def login(request, body, db):
         if attempt and attempt["until"] > now_ms() and attempt["count"] >= limit:
             raise ApiError("Muitas tentativas. Aguarde 15 minutos.", 429)
     user = await db.first("SELECT * FROM users WHERE email=? AND active=1", email)
-    stored = user["password"] if user else "pbkdf2_sha256$600000$dummy-salt$" + "0" * 64
+    stored = user["password"] if user else "pbkdf2_sha256_chain_v1$6$dummy-salt$" + "0" * 64
     if not await verify_password(password, stored) or not user:
         operations = []
         for key, _ in keys:

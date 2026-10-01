@@ -30,15 +30,29 @@ async def derive(password, salt, iterations):
     return bytes(Uint8Array.new(bits).to_py()).hex()
 
 
+async def derive_chained(password, salt):
+    # Workers caps each PBKDF2 call at 100,000 iterations. Six sequential
+    # passes retain a total 600,000-iteration cost, with a versioned format.
+    value = password
+    for step in range(6):
+        value = await derive(value, f"{salt}:{step}", 100_000)
+    return value
+
+
 async def hash_password(password):
     salt = secrets.token_hex(16)
-    derived = await derive(password, salt, 600_000)
-    return f"pbkdf2_sha256$600000${salt}${derived}"
+    derived = await derive_chained(password, salt)
+    return f"pbkdf2_sha256_chain_v1$6${salt}${derived}"
 
 
 async def verify_password(password, stored):
     try:
-        if stored.startswith("pbkdf2_sha256$"):
+        if stored.startswith("pbkdf2_sha256_chain_v1$"):
+            _, rounds, salt, value = stored.split("$")
+            if rounds != "6":
+                return False
+            derived = await derive_chained(password, salt)
+        elif stored.startswith("pbkdf2_sha256$"):
             _, iterations, salt, value = stored.split("$")
             if not 100_000 <= int(iterations) <= 600_000:
                 return False

@@ -3,7 +3,7 @@
 ## Controles implementados
 
 - Sessões opacas com validade de oito horas; somente o hash do identificador fica no banco. Cookie HttpOnly, SameSite=Strict e Secure quando servido por HTTPS.
-- Senhas com salt individual e PBKDF2-SHA256, 600.000 iterações. No Worker, a derivação usa Web Crypto; localmente usa hashlib. Não reduza o custo de derivação para caber em uma cota de hospedagem.
+- Senhas com salt individual e PBKDF2-SHA256 em seis etapas sequenciais de 100.000 iterações, totalizando 600.000. O formato versionado distingue esta derivação de uma única chamada PBKDF2; cada etapa usa o resultado hexadecimal anterior e salt individual com índice da etapa. No Worker, a derivação usa Web Crypto; localmente usa hashlib. Não reduza o custo de derivação para caber em uma cota de hospedagem.
 - Contas criadas pelo administrador principal, sem registro público. Configuração inicial exige segredo privado e só cria a primeira conta uma vez.
 - Autorizações verificadas no servidor. Tesouraria, Presbitério, Ministério e Membro não recebem acesso financeiro pela atribuição do perfil. A concessão é individual; Ministério/Membro ficam limitados ao vínculo próprio.
 - Mudanças de perfil, de acesso, de senha e desativação revogam sessões. Administradores delegados não podem distribuir acessos. A conta principal não pode ser desativada ou rebaixada pela interface.
