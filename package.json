@@ -9,7 +9,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "start": "node scripts/start-python.mjs",
-    "test": "node scripts/test-python.mjs"
+    "test": "node scripts/test-python.mjs",
+    "test:finance": "node --test tests/finance-analysis.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.31.0",

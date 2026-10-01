@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { FinancialInsights } from "./financial-insights";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -344,6 +345,7 @@ export function FinancialView({
       </div>
       {tab === "overview" && (
         <>
+          <FinancialInsights data={data} year={year} month={month} ministry={["admin", "treasury", "presbytery"].includes(user.role) ? ministry : user.ministry} />
           <div className="overview-grid">
             <CashFlow data={data} year={year} ministry={ministry} />
             <section className="panel">
@@ -442,7 +444,7 @@ export function FinancialView({
                     <strong>Maior concentração: {byCategory[0][0]}</strong>
                     <p>
                       {money(byCategory[0][1])} em despesas. Abra os lançamentos
-                      para revisar os itens e suas justificativas.
+                      para revisar as categorias e suas justificativas.
                     </p>
                   </div>
                 )}

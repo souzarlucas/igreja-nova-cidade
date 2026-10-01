@@ -1536,3 +1536,8 @@ td strong {
     margin-bottom: 16px;
   }
 }
+
+.analysis-panel { margin-bottom: 22px; }
+.analysis-categories { padding-left: 22px; margin-top: 12px; line-height: 1.8; }
+.analysis-details { margin-top: 16px; }
+.analysis-details summary { cursor: pointer; font-weight: 600; margin-bottom: 12px; }
