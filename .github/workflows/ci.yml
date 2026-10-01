@@ -17,5 +17,5 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: npm ci
       - run: uv sync --locked
-      - run: uv run pytest tests -q
+      - run: uv run python -m pytest tests -q
       - run: npm run build

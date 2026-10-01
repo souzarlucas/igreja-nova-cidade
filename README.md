@@ -48,7 +48,7 @@ Abra http://127.0.0.1:8787. Na primeira abertura, informe o código de configura
 Para desenvolver a interface, execute `npm run dev` em outro terminal. Não habilite acesso de produção pelo servidor de desenvolvimento.
 
 ```sh
-uv run pytest tests -q
+uv run python -m pytest tests -q
 npm run build
 ```
 
