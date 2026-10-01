@@ -11,7 +11,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v6
       - run: npm ci
-      - run: npx tsc --noEmit
-      - run: node --experimental-strip-types --test tests/security.test.ts
+      - run: uv sync --locked
+      - run: uv run pytest tests -q
       - run: npm run build

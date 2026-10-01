@@ -52,3 +52,16 @@ next-env.d.ts
 *.tar.gz
 
 *.tsbuildinfo
+
+.venv/
+.local/
+__pycache__/
+.pytest_cache/
+*.pyc
+
+.venv-workers/
+python_modules/
+backup*.sql
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

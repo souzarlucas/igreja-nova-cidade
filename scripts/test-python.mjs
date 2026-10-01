@@ -1,0 +1,1 @@
+import {spawn} from "node:child_process";const p=spawn(process.env.CHURCH_PYTHON || ".venv/bin/python",["-m","pytest","tests","-q"],{stdio:"inherit"});p.on("exit",code=>process.exit(code||0));

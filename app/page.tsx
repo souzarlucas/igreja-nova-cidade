@@ -1,4 +1,13 @@
 "use client";
+import {
+  FinanceStats,
+  CashFlow,
+  FinancialView,
+  FinancialForm,
+  AccountForm,
+  UserAccess,
+  financialSummary,
+} from "../components/finance";
 import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard,
@@ -28,10 +37,14 @@ type Account = {
   role: string;
   ministry: string;
   active: number;
+  canFinance: boolean;
+  financeAccess: boolean;
+  isOwner: boolean;
 };
 const roles: Record<string, string> = {
   admin: "Administrador",
-  presbytery: "Presbitério / Admin",
+  presbytery: "Presbitério",
+  member: "Membro",
   treasury: "Tesouraria",
   ministry: "Ministério",
 };
@@ -206,6 +219,25 @@ export default function App() {
   }, [reload]);
   useEffect(() => {
     if (!user) return;
+    const timer = setInterval(() => reload(), 300000);
+    const refresh = () => reload();
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [user?.id, reload]);
+  useEffect(() => {
+    if (
+      user &&
+      ((view === "finance" && !user.canFinance) ||
+        (view === "settings" && user.role !== "admin") ||
+        (view === "members" && !["admin", "ministry"].includes(user.role)))
+    )
+      setView("dashboard");
+  }, [user, view]);
+  useEffect(() => {
+    if (!user) return;
     const context = (
       document as unknown as {
         modelContext?: {
@@ -249,8 +281,10 @@ export default function App() {
               const section = (input as { section?: string })?.section;
               if (
                 !nav.some((n) => n[0] === section) ||
-                (section === "settings" &&
-                  !["admin", "presbytery"].includes(user.role))
+                (section === "settings" && user.role !== "admin") ||
+                (section === "finance" && !user.canFinance) ||
+                (section === "members" &&
+                  !["admin", "ministry"].includes(user.role))
               )
                 throw Error("Seção não permitida");
               if (section === "calendar" && !month)
@@ -301,9 +335,13 @@ export default function App() {
       }).format(new Date()),
     ) > deadline;
   const editable = (kind: string) =>
-    (!!user && ["admin", "presbytery"].includes(user.role)) ||
-    (user?.role === "treasury" && ["budgets", "expenses"].includes(kind)) ||
-    (user?.role === "ministry" && kind === "events" && !closed);
+    user?.role === "admin" ||
+    (user?.role === "treasury" &&
+      user.canFinance &&
+      ["budgets", "expenses", "incomes"].includes(kind)) ||
+    (user?.role === "ministry" &&
+      !closed &&
+      (kind === "events" || (kind === "requests" && user.canFinance)));
   const selectedEvents = events.filter(
     (e) =>
       (!month || Number(e.date.slice(5, 7)) === month) &&
@@ -523,8 +561,9 @@ export default function App() {
           {nav
             .filter(
               ([id]) =>
-                id !== "settings" ||
-                ["admin", "presbytery"].includes(user.role),
+                (id !== "settings" || user.role === "admin") &&
+                (id !== "finance" || user.canFinance) &&
+                (id !== "members" || ["admin", "ministry"].includes(user.role)),
             )
             .map(([id, label, Icon]) => (
               <button
@@ -698,7 +737,16 @@ export default function App() {
               </div>
               <select
                 aria-label="Ministério"
-                value={ministry}
+                disabled={
+                  view === "finance" &&
+                  !["admin", "treasury", "presbytery"].includes(user.role)
+                }
+                value={
+                  view === "finance" &&
+                  !["admin", "treasury", "presbytery"].includes(user.role)
+                    ? user.ministry
+                    : ministry
+                }
                 onChange={(e) => setMinistry(e.target.value)}
               >
                 <option value="">Todos os ministérios</option>
@@ -749,224 +797,120 @@ export default function App() {
           )}
           {view === "dashboard" && (
             <>
-              <div className="stats">
-                <Stat
-                  label="Eventos planejados"
-                  value={planned}
-                  icon={<CalendarDays />}
-                  tone="blue"
-                  detail="Atividades programadas"
-                />
-                <Stat
-                  label="Eventos concluídos"
-                  value={done}
-                  icon={<Check />}
-                  tone="green"
-                  detail="Propósitos realizados"
-                />
-                <Stat
-                  label="Eventos em atraso"
-                  value={late}
-                  icon={<Clock />}
-                  tone="amber"
-                  detail="Precisam de atenção"
-                />
-                <Stat
-                  label="Orçamento disponível"
-                  value={money(budget - spent)}
-                  icon={<Wallet />}
-                  tone="purple"
-                  detail={month ? "Saldo do mês" : "Saldo do ano"}
-                />
+              <div className="stats-grid">
+                {[
+                  ["Eventos programados", planned, "blue"],
+                  ["Eventos concluídos", done, "green"],
+                  ["Eventos atrasados", late, "red"],
+                  [
+                    "Em andamento",
+                    selectedEvents.filter((e) => status(e) === "Em andamento")
+                      .length,
+                    "amber",
+                  ],
+                ].map(([label, value, color]) => (
+                  <section className="stat-card" key={label}>
+                    <span className={`stat-icon ${color}`}>
+                      <CalendarDays size={21} />
+                    </span>
+                    <p>{label}</p>
+                    <h2>{value}</h2>
+                    <small>No período selecionado</small>
+                  </section>
+                ))}
               </div>
-              <div className="overview-grid">
-                <section className="panel">
-                  <div className="panel-heading">
-                    <div>
-                      <h2>Consumo do orçamento</h2>
-                      <p>Despesas realizadas ao longo de {year}</p>
-                    </div>
-                    <span className="legend">
-                      <i /> Gasto mensal
-                    </span>
+              {user.canFinance ? (
+                <>
+                  <FinanceStats
+                    summary={financialSummary(
+                      data,
+                      year,
+                      month,
+                      ["admin", "treasury", "presbytery"].includes(user.role)
+                        ? ministry
+                        : user.ministry,
+                    )}
+                  />
+                  <CashFlow
+                    data={data}
+                    year={year}
+                    ministry={
+                      ["admin", "treasury", "presbytery"].includes(user.role)
+                        ? ministry
+                        : user.ministry
+                    }
+                  />
+                  <div className="finance-actions">
+                    <button
+                      className="text-button"
+                      onClick={() => navigate("finance")}
+                    >
+                      Abrir financeiro <ArrowUpRight size={16} />
+                    </button>
                   </div>
-                  <div className="bar-chart">
-                    {months.map((m, i) => {
-                      const v = expenses
-                        .filter(
-                          (e) =>
-                            e.date.startsWith(
-                              String(year) +
-                                "-" +
-                                String(i + 1).padStart(2, "0"),
-                            ) &&
-                            (!ministry || e.ministry === ministry),
-                        )
-                        .reduce((s, e) => s + e.amount, 0);
-                      const max = Math.max(
-                        1,
-                        ...months.map((_, j) =>
-                          expenses
-                            .filter(
-                              (e) =>
-                                e.date.startsWith(
-                                  String(year) +
-                                    "-" +
-                                    String(j + 1).padStart(2, "0"),
-                                ) &&
-                                (!ministry || e.ministry === ministry),
-                            )
-                            .reduce((s, e) => s + e.amount, 0),
-                        ),
-                      );
-                      return (
-                        <div
-                          className="bar-column"
-                          key={m}
-                          title={m + ": " + money(v)}
-                        >
-                          <div
-                            className={
-                              "bar " + (month === i + 1 ? "selected" : "")
-                            }
-                            style={{
-                              height: v ? Math.max(3, (v / max) * 145) : 3,
-                            }}
-                          />
-                          <span>{m.slice(0, 3)}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="chart-footer">
-                    <span>
-                      Total realizado no ano{" "}
-                      <strong>{money(annualSpend)}</strong>
-                    </span>
-                    <span>
-                      Saldo anual{" "}
-                      <strong>{money(annualBudget - annualSpend)}</strong>
-                    </span>
-                  </div>
-                </section>
-                <section className="panel budget-panel">
-                  <div className="panel-heading">
-                    <div>
-                      <h2>Orçamento do período</h2>
-                      <p>
-                        {month ? months[month - 1] : "Ano"} de {year}
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    className="donut"
-                    style={{
-                      background: `conic-gradient(#6658d9 0% ${Math.min(percent, 100)}%,#eeeef5 ${Math.min(percent, 100)}% 100%)`,
-                    }}
-                  >
-                    <div>
-                      <strong>{percent.toFixed(0)}%</strong>
-                      <span>utilizado</span>
-                    </div>
-                  </div>
-                  <div className="budget-line">
-                    <span>
-                      <i className="purple-dot" /> Consumido
-                    </span>
-                    <strong>{money(spent)}</strong>
-                  </div>
-                  <div className="budget-line">
-                    <span>
-                      <i className="gray-dot" /> Disponível
-                    </span>
-                    <strong>{money(budget - spent)}</strong>
-                  </div>
-                  <div className="budget-total">
-                    Orçamento total <strong>{money(budget)}</strong>
-                  </div>
-                  {!budget && (
-                    <small>
-                      Orçamento ainda não definido para este período.
-                    </small>
-                  )}
-                </section>
-              </div>
-              <section className="panel">
+                </>
+              ) : (
+                <div className="scope-banner spaced">
+                  <ShieldCheck size={19} />
+                  <span>
+                    Seu acesso inclui as atividades da igreja. Informações
+                    financeiras dependem de autorização individual do
+                    administrador principal.
+                  </span>
+                </div>
+              )}
+              <section className="panel spaced">
                 <div className="panel-heading">
                   <div>
-                    <h2>
-                      Atividades do período{" "}
-                      <span className="count">{selectedEvents.length}</span>
-                    </h2>
-                    <p>O planejamento ganha vida em cada encontro.</p>
+                    <h2>Atividades do período</h2>
+                    <p>Planejamento e acompanhamento dos ministérios</p>
                   </div>
                   <button
                     className="text-button"
-                    onClick={() => navigate("events")}
+                    onClick={() => navigate("calendar")}
                   >
-                    Ver todos <ArrowUpRight size={16} />
+                    Abrir calendário
                   </button>
                 </div>
-                {eventTable()}
-              </section>
-              <div className="overview-grid lower">
-                <section className="panel">
-                  <div className="panel-heading">
-                    <h2>Orçamento por ministério</h2>
-                  </div>
-                  {ministries.length ? (
-                    ministries.map((m) => {
-                      const b = budgets
-                          .filter(
-                            (b) =>
-                              b.ministry === m.id &&
-                              b.year === year &&
-                              b.month === month,
-                          )
-                          .reduce((s, b) => s + b.amount, 0),
-                        s = spending
-                          .filter((e) => e.ministry === m.id)
-                          .reduce((s, e) => s + e.amount, 0);
-                      return (
-                        <div className="ministry-budget" key={m.id}>
-                          <div>
-                            <strong>{m.name}</strong>
-                            <span>
-                              {money(s)} / {money(b)}
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Atividade</th>
+                        <th>Ministério</th>
+                        <th>Responsável</th>
+                        <th>Data</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedEvents.slice(0, 10).map((e) => (
+                        <tr
+                          key={e.id}
+                          onClick={() => setModal({ kind: "events", row: e })}
+                        >
+                          <td>
+                            <strong>{e.name}</strong>
+                          </td>
+                          <td>{ministryName(e.ministry)}</td>
+                          <td>{e.responsible}</td>
+                          <td>{dates(e.date)}</td>
+                          <td>
+                            <span className={`badge ${colors[status(e)]}`}>
+                              {status(e)}
                             </span>
-                          </div>
-                          <div className="progress">
-                            <i
-                              style={{
-                                width:
-                                  Math.min(100, b ? (s / b) * 100 : 0) + "%",
-                              }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <Empty
-                      text="Comece pelos ministérios"
-                      detail="Os orçamentos aparecerão aqui após o cadastro."
-                    />
-                  )}
-                </section>
-                <section className="panel">
-                  <div className="panel-heading">
-                    <h2>Status das atividades</h2>
-                  </div>
-                  {Object.keys(colors).map((s) => (
-                    <div className="status-line" key={s}>
-                      {badge(s)}
-                      <strong>
-                        {selectedEvents.filter((e) => status(e) === s).length}
-                      </strong>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {!selectedEvents.length && (
+                    <div className="empty">
+                      Nenhuma atividade neste período.
                     </div>
-                  ))}
-                </section>
-              </div>
+                  )}
+                </div>
+              </section>
             </>
           )}
           {view === "events" && (
@@ -1208,214 +1152,23 @@ export default function App() {
               )}
             </>
           )}
-          {view === "finance" && (
-            <>
-              <div className="stats">
-                <Stat
-                  label="Orçamento do período"
-                  value={money(budget)}
-                  icon={<Wallet />}
-                  tone="purple"
-                  detail="Valor autorizado"
-                />
-                <Stat
-                  label="Despesas realizadas"
-                  value={money(spent)}
-                  icon={<ArrowUpRight />}
-                  tone="blue"
-                  detail="Valores efetivamente gastos"
-                />
-                <Stat
-                  label="Saldo disponível"
-                  value={money(budget - spent)}
-                  icon={<Wallet />}
-                  tone="green"
-                  detail={
-                    percent > 100
-                      ? "Orçamento excedido"
-                      : "Recursos disponíveis"
-                  }
-                />
-                <Stat
-                  label="Orçamento utilizado"
-                  value={percent.toFixed(1) + "%"}
-                  icon={<Clock />}
-                  tone="amber"
-                  detail={"Saldo anual: " + money(annualBudget - annualSpend)}
-                />
-              </div>
-              <div className="finance-actions">
-                {editable("budgets") && (
-                  <button
-                    className="secondary"
-                    onClick={() => setModal({ kind: "budgets" })}
-                  >
-                    <Plus size={17} />
-                    Definir orçamento
-                  </button>
-                )}
-                {editable("expenses") && (
-                  <button
-                    className="primary"
-                    onClick={() => setModal({ kind: "expenses" })}
-                  >
-                    <Plus size={17} />
-                    Lançar despesa
-                  </button>
-                )}
-              </div>
-              <section className="panel">
-                <div className="panel-heading">
-                  <h2>Orçamentos por ministério</h2>
-                  <p>Valores anuais e mensais são definidos separadamente.</p>
-                </div>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Ministério / área</th>
-                        <th>Período</th>
-                        <th>Orçamento</th>
-                        <th>Gasto</th>
-                        <th>Saldo</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {budgets
-                        .filter(
-                          (b) =>
-                            b.year === year &&
-                            (!ministry || b.ministry === ministry),
-                        )
-                        .map((b) => {
-                          const s = expenses
-                            .filter(
-                              (e) =>
-                                e.ministry === b.ministry &&
-                                Number(e.date.slice(0, 4)) === b.year &&
-                                (!b.month ||
-                                  Number(e.date.slice(5, 7)) === b.month),
-                            )
-                            .reduce((s, e) => s + e.amount, 0);
-                          return (
-                            <tr key={b.id}>
-                              <td>
-                                <strong>{ministryName(b.ministry)}</strong>
-                                <small>{b.area || "Sem área"}</small>
-                              </td>
-                              <td>
-                                {b.month ? months[b.month - 1] : "Anual"} /{" "}
-                                {b.year}
-                              </td>
-                              <td>{money(b.amount)}</td>
-                              <td>{money(s)}</td>
-                              <td
-                                className={b.amount - s < 0 ? "negative" : ""}
-                              >
-                                {money(b.amount - s)}
-                              </td>
-                              <td>
-                                {editable("budgets") && (
-                                  <button
-                                    className="text-button"
-                                    onClick={() =>
-                                      setModal({ kind: "budgets", row: b })
-                                    }
-                                  >
-                                    Editar
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </table>
-                  {!budgets.length && (
-                    <Empty
-                      text="Nenhum orçamento definido"
-                      detail="A tesouraria pode definir valores anuais e mensais por ministério."
-                    />
-                  )}
-                </div>
-              </section>
-              <section className="panel spaced">
-                <div className="panel-heading">
-                  <h2>Despesas do período</h2>
-                </div>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Descrição</th>
-                        <th>Ministério</th>
-                        <th>Área</th>
-                        <th>Data</th>
-                        <th>Valor</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {spending.map((e) => (
-                        <tr key={e.id}>
-                          <td>
-                            <strong>{e.name}</strong>
-                            <small>
-                              {events.find((v) => v.id === e.event)?.name ||
-                                "Despesa avulsa"}
-                            </small>
-                          </td>
-                          <td>{ministryName(e.ministry)}</td>
-                          <td>{e.area || "—"}</td>
-                          <td>{dates(e.date)}</td>
-                          <td>{money(e.amount)}</td>
-                          <td>
-                            {editable("expenses") && (
-                              <button
-                                className="text-button"
-                                onClick={() =>
-                                  setModal({ kind: "expenses", row: e })
-                                }
-                              >
-                                Editar
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {!spending.length && (
-                    <Empty
-                      text="Nenhuma despesa no período"
-                      detail="Valores previstos nos eventos não são contabilizados como gastos realizados."
-                    />
-                  )}
-                </div>
-              </section>
-              <section className="panel spaced">
-                <div className="panel-heading">
-                  <h2>Gastos por área</h2>
-                </div>
-                {Array.from(
-                  new Set(spending.map((e) => e.area || "Sem área")),
-                ).map((a) => (
-                  <div className="status-line" key={a}>
-                    <span>{a}</span>
-                    <strong>
-                      {money(
-                        spending
-                          .filter((e) => (e.area || "Sem área") === a)
-                          .reduce((s, e) => s + e.amount, 0),
-                      )}
-                    </strong>
-                  </div>
-                ))}
-              </section>
-            </>
+          {view === "finance" && user.canFinance && (
+            <FinancialView
+              data={data}
+              user={user}
+              year={year}
+              month={month}
+              ministry={
+                ["admin", "treasury", "presbytery"].includes(user.role)
+                  ? ministry
+                  : user.ministry
+              }
+              onOpen={(kind, row) => setModal({ kind, row })}
+              onMutate={mutate}
+              busy={busy}
+            />
           )}
-          {view === "settings" && (
+          {view === "settings" && user.role === "admin" && (
             <>
               <section className="panel">
                 <div className="panel-heading">
@@ -1461,76 +1214,15 @@ export default function App() {
                   </button>
                 </form>
               </section>
-              <section className="panel spaced">
-                <div className="panel-heading">
-                  <div>
-                    <h2>Usuários e permissões</h2>
-                    <p>
-                      Ministério: atividades próprias e finanças próprias.
-                      Tesouraria: finanças. Presbitério / Admin: gestão
-                      completa.
-                    </p>
-                  </div>
-                  <button
-                    className="primary"
-                    onClick={() => setModal({ kind: "user" })}
-                  >
-                    <Plus size={17} />
-                    Novo usuário
-                  </button>
-                </div>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Usuário</th>
-                        <th>Perfil</th>
-                        <th>Ministério</th>
-                        <th>Status</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {accounts.map((a) => (
-                        <tr key={a.id}>
-                          <td>
-                            <strong>{a.name}</strong>
-                            <small>{a.email}</small>
-                          </td>
-                          <td>{roles[a.role]}</td>
-                          <td>
-                            {a.ministry ? ministryName(a.ministry) : "Todos"}
-                          </td>
-                          <td>{a.active ? "Ativo" : "Desativado"}</td>
-                          <td>
-                            <button
-                              className="text-button"
-                              onClick={() =>
-                                setModal({ kind: "password", row: a as Row })
-                              }
-                            >
-                              Redefinir senha
-                            </button>
-                            {a.active === 1 && a.id !== user.id && (
-                              <button
-                                className="text-button negative"
-                                onClick={() =>
-                                  setModal({
-                                    kind: "disableUser",
-                                    row: a as Row,
-                                  })
-                                }
-                              >
-                                Desativar
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+              {user.isOwner && (
+                <UserAccess
+                  accounts={accounts}
+                  data={data}
+                  busy={busy}
+                  onOpen={(kind, row) => setModal({ kind, row })}
+                  onMutate={mutate}
+                />
+              )}
               <section className="panel spaced">
                 <div className="panel-heading">
                   <h2>Registro de alterações</h2>
@@ -1596,6 +1288,9 @@ export default function App() {
                           events: "evento",
                           budgets: "orçamento",
                           expenses: "despesa",
+                          incomes: "entrada",
+                          requests: "pedido de recursos",
+                          updateUser: "usuário",
                           user: "usuário",
                         } as Record<string, string>
                       )[modal.kind]}
@@ -1609,7 +1304,48 @@ export default function App() {
                 {error}
               </div>
             )}
-            {modal.kind === "disableUser" ? (
+            {["user", "updateUser"].includes(modal.kind) ? (
+              <AccountForm
+                row={modal.row}
+                data={data}
+                busy={busy}
+                onClose={() => setModal(null)}
+                onSave={async (values) => {
+                  if (
+                    await mutate({
+                      action: modal.kind,
+                      id: modal.row?.id,
+                      data: values,
+                    })
+                  )
+                    setModal(null);
+                }}
+              />
+            ) : ["budgets", "expenses", "incomes", "requests"].includes(
+                modal.kind,
+              ) ? (
+              <FinancialForm
+                kind={modal.kind}
+                row={modal.row}
+                data={data}
+                user={user}
+                year={year}
+                month={month}
+                busy={busy}
+                onClose={() => setModal(null)}
+                onSave={async (values) => {
+                  if (
+                    await mutate({
+                      action: "save",
+                      kind: modal.kind,
+                      id: modal.row?.id,
+                      ...values,
+                    })
+                  )
+                    setModal(null);
+                }}
+              />
+            ) : modal.kind === "disableUser" ? (
               <div className="form-body">
                 <p>
                   Desativar o acesso de {modal.row?.name}? As sessões abertas
@@ -1737,7 +1473,9 @@ export default function App() {
                             required: true,
                           },
                         ]
-                      : fields[modal.kind] || []
+                      : (fields[modal.kind] || []).filter(
+                          (f) => f.key !== "amount" || user.canFinance,
+                        )
                     )
                       .filter(
                         (field) =>

@@ -1,0 +1,2 @@
+import {spawn} from "node:child_process";
+const proc=spawn(process.env.CHURCH_PYTHON || ".venv/bin/python",["-m","uvicorn","backend.local:app","--host","127.0.0.1","--port","8787"],{stdio:"inherit"});proc.on("error",()=>{console.error("Crie o ambiente Python conforme README ou defina CHURCH_PYTHON.");process.exit(1)});proc.on("exit",code=>process.exit(code||0));
