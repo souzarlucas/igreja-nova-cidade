@@ -1515,3 +1515,24 @@ td strong {
     align-items: flex-start;
   }
 }
+
+.church-logo {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.login-logo {
+  width: clamp(120px, 14vw, 176px);
+  height: auto;
+  margin-bottom: 28px;
+}
+.sidebar-logo {
+  width: 56px;
+  height: 56px;
+}
+@media (max-width: 600px) {
+  .login-logo {
+    width: 100px;
+    margin-bottom: 16px;
+  }
+}

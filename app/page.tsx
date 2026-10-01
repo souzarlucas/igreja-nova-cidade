@@ -453,9 +453,7 @@ export default function App() {
     return (
       <div className="login-page">
         <div className="login-brand">
-          <div className="brand-mark">
-            <Church size={30} />
-          </div>
+          <img className="church-logo login-logo" src="/logo-congregacao.png" alt="Logo da Igreja de Cristo em Nova Cidade" width="160" height="160" />
           <h1>
             Servir com propósito.
             <br />
@@ -548,9 +546,7 @@ export default function App() {
             navigate("dashboard");
           }}
         >
-          <div className="brand-mark">
-            <Church size={23} />
-          </div>
+          <img className="church-logo sidebar-logo" src="/logo-congregacao.png" alt="Logo da congregação" width="56" height="56" />
           <div>
             <strong>Nova Cidade</strong>
             <span>Igreja de Cristo</span>
