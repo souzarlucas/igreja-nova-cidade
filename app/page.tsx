@@ -109,9 +109,9 @@ const fields: Record<
 > = {
   ministries: [
     { key: "name", label: "Nome do ministério", required: true },
-    { key: "leader", label: "Líder responsável" },
-    { key: "area", label: "Área" },
-    { key: "description", label: "Descrição e informações", type: "textarea" },
+    { key: "leader", label: "Responsável" },
+    { key: "description", label: "Descrição do Ministério", type: "textarea" },
+    { key: "volunteers", label: "Membros", type: "textarea" },
     { key: "email", label: "E-mail", type: "email" },
     { key: "phone", label: "Telefone" },
   ],
@@ -341,7 +341,7 @@ export default function App() {
       ["budgets", "expenses", "incomes"].includes(kind)) ||
     (user?.role === "ministry" &&
       !closed &&
-      (kind === "events" || (["requests", "expenses", "incomes"].includes(kind) && user.canFinance)));
+      (["events", "ministries"].includes(kind) || (["requests", "expenses", "incomes"].includes(kind) && user.canFinance)));
   const selectedEvents = events.filter(
     (e) =>
       (!month || Number(e.date.slice(5, 7)) === month) &&
@@ -683,7 +683,7 @@ export default function App() {
               </p>
             </div>
             {["events", "ministries", "members"].includes(view) &&
-              editable(view) && (
+              editable(view) && (view !== "ministries" || user.role === "admin") && (
                 <button
                   className="primary"
                   onClick={() => setModal({ kind: view })}
@@ -1070,16 +1070,12 @@ export default function App() {
                           <span>Responsável</span>
                           <strong>{m.leader || "A definir"}</strong>
                         </div>
-                        <div className="ministry-meta">
-                          <span>Área</span>
-                          <strong>{m.area || "A definir"}</strong>
-                        </div>
                         <div className="ministry-card-footer">
                           <span>
                             {
-                              (data.members || []).filter(
-                                (v) => v.ministry === m.id,
-                              ).length
+                              m.volunteers?.trim()
+                                ? m.volunteers.split(/\r?\n/).filter((name: string) => name.trim()).length
+                                : (data.members || []).filter((v) => v.ministry === m.id).length
                             }{" "}
                             membros
                           </span>
@@ -1089,7 +1085,7 @@ export default function App() {
                               setModal({ kind: "ministries", row: m })
                             }
                           >
-                            {editable("ministries") ? "Editar" : "Detalhes"}
+                            {editable("ministries") && (user.role === "admin" || m.id === user.ministry) ? "Editar" : "Detalhes"}
                           </button>
                         </div>
                       </section>
@@ -1406,7 +1402,7 @@ export default function App() {
                             action: "save",
                             kind: modal.kind,
                             id: modal.row?.id,
-                            ministry: f.ministry || "",
+                            ministry: modal.kind === "ministries" ? (modal.row?.ministry || "") : f.ministry || "",
                             data: payload,
                           },
                   );
@@ -1426,7 +1422,7 @@ export default function App() {
                         (editable(modal.kind) &&
                           (user.role !== "ministry" ||
                             !modal.row ||
-                            modal.row.ministry === user.ministry))
+                            (modal.kind === "ministries" ? modal.row.id : modal.row.ministry) === user.ministry))
                       )
                     }
                     className="form-grid"
@@ -1492,6 +1488,7 @@ export default function App() {
                           {field.type === "textarea" ? (
                             <textarea
                               name={field.key}
+                              placeholder={field.key === "volunteers" ? "Digite o nome dos voluntários, um por linha." : undefined}
                               rows={3}
                               maxLength={4000}
                               defaultValue={modal.row?.[field.key] || ""}
@@ -1605,7 +1602,7 @@ export default function App() {
                       (editable(modal.kind) &&
                         (user.role !== "ministry" ||
                           !modal.row ||
-                          modal.row.ministry === user.ministry))) && (
+                          (modal.kind === "ministries" ? modal.row.id : modal.row.ministry) === user.ministry))) && (
                       <button disabled={busy} className="primary">
                         {busy ? "Salvando…" : "Salvar"}
                       </button>

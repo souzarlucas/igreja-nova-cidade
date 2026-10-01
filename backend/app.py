@@ -572,11 +572,17 @@ async def handle(request, body):
     if old and (
         old["kind"] != kind
         or user["role"] == "ministry"
-        and old["ministry"] != user["ministry"]
+        and (old["id"] if kind == "ministries" else old["ministry"]) != user["ministry"]
     ):
         raise ApiError("Operação não permitida.", 403)
+    if kind == "ministries" and old:
+        data["area"] = json.loads(old["data"]).get("area", "")
     if user["role"] == "ministry":
-        if ministry != user["ministry"]:
+        if kind == "ministries":
+            if not old or identifier != user["ministry"]:
+                raise ApiError("Você só pode editar seu próprio ministério.", 403)
+            ministry = old["ministry"]
+        elif ministry != user["ministry"]:
             raise ApiError("Ministério não permitido.", 403)
         config = await db.first(
             "SELECT data FROM records WHERE kind='settings' LIMIT 1"

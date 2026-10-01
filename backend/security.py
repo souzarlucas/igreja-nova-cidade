@@ -87,4 +87,4 @@ def can_write(role, kind):
         return True
     if role == "treasury":
         return kind in {"budgets", "expenses", "incomes"}
-    return role == "ministry" and kind in {"events", "requests", "expenses", "incomes"}
+    return role == "ministry" and kind in {"ministries", "events", "requests", "expenses", "incomes"}

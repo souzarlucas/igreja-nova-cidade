@@ -418,3 +418,25 @@ def test_single_value_expense_and_request_keep_approval_and_totals(church):
     assert post(representative, {'action': 'save', 'kind': 'expenses', 'ministry': ministry, 'data': {**expense, 'justification': ''}}).status_code == 400
     assert post(representative, {'action': 'save', 'kind': 'requests', 'ministry': ministry, 'data': {**request, 'justification': ''}}).status_code == 400
     assert post(representative, {'action': 'save', 'kind': 'expenses', 'ministry': ministry, 'data': {**expense, 'amount': 0}}).status_code == 400
+
+
+def test_ministry_representative_edits_own_volunteers_only(church):
+    app, admin, post = church
+    own = save(admin, post, 'ministries', {'name': 'Louvor', 'area': 'Área histórica'})
+    other = save(admin, post, 'ministries', {'name': 'Jovens'})
+    save(admin, post, 'settings', {'deadline': 31})
+    _, representative = account(app, admin, post, 'ministry', own)
+    data = {'name': 'Louvor', 'leader': 'Responsável', 'description': 'Ministério de louvor da igreja.', 'volunteers': 'Ana Souza\nJoão Silva'}
+    assert post(representative, {'action': 'save', 'kind': 'ministries', 'id': own, 'data': data}).status_code == 200
+    state = representative.get('/api/system').json()['data']['ministries']
+    record = next(m for m in state if m['id'] == own)
+    assert record['volunteers'] == 'Ana Souza\nJoão Silva'
+    assert record['area'] == 'Área histórica'
+    assert not representative.get('/api/system').json()['user']['canFinance']
+    assert post(representative, {'action': 'save', 'kind': 'ministries', 'id': other, 'data': data}).status_code == 403
+    assert post(representative, {'action': 'save', 'kind': 'ministries', 'data': data}).status_code == 403
+    _, another = account(app, admin, post, 'ministry', other)
+    hidden = next(m for m in another.get('/api/system').json()['data']['ministries'] if m['id'] == own)
+    assert 'volunteers' not in hidden
+    save(admin, post, 'settings', {'deadline': 1})
+    assert post(representative, {'action': 'save', 'kind': 'ministries', 'id': own, 'data': data}).status_code == 403
