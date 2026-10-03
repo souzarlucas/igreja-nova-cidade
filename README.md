@@ -1,3 +1,17 @@
+> **Publicação desativada na Cloudflare em 02/10/2026.** Este repositório preserva o código MIT e a demonstração visual. As imagens abaixo usam uma tela sem login e dados financeiros fictícios, sem dados reais da igreja.
+
+## Demonstração visual
+
+![Tela de entrada](docs/imagens/entrada.jpg)
+
+<details><summary>Ver os gráficos e análises com dados fictícios</summary>
+
+![Demonstração financeira](docs/imagens/financeiro-demonstracao.jpg)
+
+</details>
+
+Para executar a interface e API, siga as instruções locais abaixo. O GitHub não executa o backend Python ou o banco de dados; esta demonstração visual pode ser vista no próprio repositório.
+
 # Igreja de Cristo em Nova Cidade
 
 Sistema de gestão de ministérios, membros, eventos e recursos da igreja. Código aberto sob licença MIT, com interface em português e backend Python com FastAPI. A licença permite uso gratuito, modificação e publicação do código. Dados reais, bancos, senhas e segredos permanecem privados.
