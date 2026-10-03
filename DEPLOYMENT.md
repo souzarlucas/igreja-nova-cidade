@@ -6,7 +6,7 @@ A configuração candidata usa Cloudflare Workers Python e D1 no plano **Free**,
 
 O frontend compilou e os testes de integração passaram em SQLite local. Também foram verificados no simulador de Workers Python com D1: migrações, interface, configuração inicial, derivação de senha com Web Crypto, login, sessões, autorizações individuais, revogação, pedidos, reservas, transações e limites de despesas.
 
-**Publicação desativada em 02/10/2026 a pedido do responsável.** A rota workers.dev e as URLs de pré-visualização foram desabilitadas. O Worker e o D1 foram preservados para recuperação, com exportação privada antes da desativação. Os dados exportados não fazem parte deste repositório. As instruções abaixo são históricas e só devem ser usadas para uma publicação novamente autorizada.
+**A instância da igreja foi publicada na conta Cloudflare do responsável, com D1 e HTTPS.** O endereço e o código de configuração foram entregues privadamente. A API anônima, a recusa de gravações sem sessão, a proteção de origem e a recusa de código de configuração inválido foram verificadas no endereço remoto. A conta principal deve ser criada pelo responsável, com sua própria senha. Os fluxos autenticados foram testados localmente e no simulador de Workers/D1; a capacidade para uso simultâneo e a restauração de backups ainda devem ser validadas antes de operação plena. Nenhum plano pago foi ativado.
 
 ## Limites e custo
 
